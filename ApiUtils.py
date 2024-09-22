@@ -1,4 +1,5 @@
 import requests
+from datetime import datetime
 import json
 
 BASE_URL = 'https://66eb01a455ad32cda47b4d0a.mockapi.io/IoTCarStatus'
@@ -25,25 +26,44 @@ def obtener_ip_cliente():
     except requests.RequestException as e:
         return f'Error: {e}'
 
-# Función para inyectar acciones en MockAPI
+# Función para inyectar acción en MockAPI, incluyendo hora y IP cliente
 def inyectar_accion(accion):
     try:
-        data = {"accion": accion}
+        # Obtener hora actual desde la API local
+        hora_actual = obtener_hora_local()
+        ip_cliente = obtener_ip_cliente()
+
+        # Si falla, usar la hora del sistema como fallback
+        if 'Error' in hora_actual:
+            hora_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Obtener solo la fecha en formato Año-Mes-Día
+        fecha_actual = hora_actual.split(' ')[0]
+
+        # Estructura de los datos a enviar
+        data = {
+            "accion": accion,
+            "ipClient": ip_cliente,
+            "date": fecha_actual
+        }
+
+        # Realizar la petición POST a MockAPI
         response = requests.post(BASE_URL, json=data)
         if response.status_code == 201:
             return "Acción inyectada correctamente"
         else:
-            return "Error al inyectar la acción"
+            return f"Error al inyectar la acción: {response.status_code}"
     except requests.RequestException as e:
         return f'Error: {e}'
 
-# Función para obtener el historial (últimos 10 registros)
+# Función para obtener el historial (últimos 10 registros de MockAPI)
 def obtener_historial():
     try:
-        response = requests.get(BASE_URL + '?limit=10&sortBy=createdAt&order=desc')
+        # Solicitar los últimos 10 registros ordenados por fecha de creación (desc)
+        response = requests.get(f"{BASE_URL}?limit=10&sortBy=createdAt&order=desc")
         if response.status_code == 200:
-            return response.json()
+            return response.json()  # Devolver los registros como lista de diccionarios
         else:
-            return 'Error al obtener el historial'
+            return f"Error al obtener el historial: {response.status_code}"
     except requests.RequestException as e:
-        return f'Error: {e}'
+        return f"Error: {e}"
+
