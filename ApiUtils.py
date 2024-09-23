@@ -1,69 +1,53 @@
 import requests
-from datetime import datetime
-import json
 
-BASE_URL = 'https://66eb01a455ad32cda47b4d0a.mockapi.io/IoTCarStatus'
-
-# Función para obtener la hora desde la API local
+# Mantener la función para obtener la hora local desde la API local
 def obtener_hora_local():
     try:
         response = requests.get('http://127.0.0.1:5000/hora')
         if response.status_code == 200:
-            return response.json().get('hora', 'Error al obtener la hora')
+            return response.json().get('hora', 'Hora no disponible')
         else:
-            return 'Error al conectar con la API local'
-    except requests.RequestException as e:
-        return f'Error: {e}'
+            return f"Error al obtener la hora: {response.status_code}"
+    except Exception as e:
+        return f"Error: {e}"
 
-# Función para obtener la IP del cliente desde la API local
-def obtener_ip_cliente():
+# Extraer la IP desde MockAPI
+def obtener_ip_desde_mockapi():
     try:
-        response = requests.get('http://127.0.0.1:5000/ip')
+        response = requests.get('https://66eb01a455ad32cda47b4d0a.mockapi.io/IoTCarStatus')
         if response.status_code == 200:
-            return response.json().get('ip', 'Error al obtener la IP')
+            # Tomar el último registro disponible
+            registros = response.json()
+            if registros:
+                return registros[-1].get('ipClient', 'IP no disponible')
+            else:
+                return 'No hay registros disponibles para obtener la IP'
         else:
-            return 'Error al conectar con la API local'
-    except requests.RequestException as e:
-        return f'Error: {e}'
+            return f"Error al obtener la IP: {response.status_code}"
+    except Exception as e:
+        return f"Error: {e}"
 
-# Función para inyectar acción en MockAPI, incluyendo hora y IP cliente
+# Funciones
 def inyectar_accion(accion):
+    data = {
+        "accion": accion
+
+    }
     try:
-        # Obtener hora actual desde la API local
-        hora_actual = obtener_hora_local()
-        ip_cliente = obtener_ip_cliente()
-
-        # Si falla, usar la hora del sistema como fallback
-        if 'Error' in hora_actual:
-            hora_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # Obtener solo la fecha en formato Año-Mes-Día
-        fecha_actual = hora_actual.split(' ')[0]
-
-        # Estructura de los datos a enviar
-        data = {
-            "accion": accion,
-            "ipClient": ip_cliente,
-            "date": fecha_actual
-        }
-
-        # Realizar la petición POST a MockAPI
-        response = requests.post(BASE_URL, json=data)
+        response = requests.post('https://66eb01a455ad32cda47b4d0a.mockapi.io/IoTCarStatus', json=data)
         if response.status_code == 201:
             return "Acción inyectada correctamente"
         else:
             return f"Error al inyectar la acción: {response.status_code}"
-    except requests.RequestException as e:
-        return f'Error: {e}'
-
-# Función para obtener el historial (últimos 10 registros de MockAPI)
-def obtener_historial():
-    try:
-        # Solicitar los últimos 10 registros ordenados por fecha de creación (desc)
-        response = requests.get(f"{BASE_URL}?limit=10&sortBy=createdAt&order=desc")
-        if response.status_code == 200:
-            return response.json()  # Devolver los registros como lista de diccionarios
-        else:
-            return f"Error al obtener el historial: {response.status_code}"
-    except requests.RequestException as e:
+    except Exception as e:
         return f"Error: {e}"
 
+def obtener_historial():
+    try:
+        response = requests.get('https://66eb01a455ad32cda47b4d0a.mockapi.io/IoTCarStatus')
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return f"Error al obtener el historial: {response.status_code}"
+    except Exception as e:
+        return f"Error: {e}"

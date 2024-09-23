@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
-from ApiUtils import inyectar_accion, obtener_hora_local, obtener_ip_cliente, obtener_historial
+from ApiUtils import inyectar_accion, obtener_hora_local, obtener_ip_desde_mockapi, obtener_historial
 
 
 class IoTCarStatusApp:
@@ -8,75 +7,72 @@ class IoTCarStatusApp:
         self.root = root
         self.root.title("IoT Car Status App")
 
-        # Crear botones de control
-        self.crear_botones()
+        # Crear los botones de dirección
+        self.crear_controles()
 
-        # Crear etiquetas para la hora y la IP
-        self.hora_label = tk.Label(self.root, text="Hora: No disponible")
-        self.hora_label.pack()
+        # Crear área de historial
+        self.historial_area = tk.Text(root, height=10, width=50)
+        self.historial_area.grid(row=6, column=0, columnspan=3)
 
-        self.ip_label = tk.Label(self.root, text="IP: No disponible")
-        self.ip_label.pack()
+        # Mostrar la hora y la IP iniciales
+        self.mostrar_hora_ip()
 
-        # Crear área de texto para el historial
-        self.historial_area = tk.Text(self.root, height=10, width=50)
-        self.historial_area.pack()
+    def crear_controles(self):
+        # Colocar los botones en la cuadrícula
+        self.boton_arriba = tk.Button(self.root, text="Arriba", command=lambda: self.enviar_accion("Arriba"))
+        self.boton_arriba.grid(row=0, column=1)  # Botón Arriba en el centro de la fila 0
 
-        # Botón para mostrar el historial
-        self.historial_button = tk.Button(self.root, text="Historial", command=self.mostrar_historial)
-        self.historial_button.pack()
+        self.boton_abajo = tk.Button(self.root, text="Abajo", command=lambda: self.enviar_accion("Abajo"))
+        self.boton_abajo.grid(row=2, column=1)  # Botón Abajo en el centro de la fila 2
 
-        # Actualizar la hora y la IP al iniciar
-        self.actualizar_hora_ip()
+        self.boton_izquierda = tk.Button(self.root, text="Izquierda", command=lambda: self.enviar_accion("Izquierda"))
+        self.boton_izquierda.grid(row=1, column=0)  # Botón Izquierda en la fila 1, columna 0
 
-    def crear_botones(self):
-        # Crear un frame para los botones
-        control_frame = tk.Frame(self.root)
-        control_frame.pack()
+        self.boton_derecha = tk.Button(self.root, text="Derecha", command=lambda: self.enviar_accion("Derecha"))
+        self.boton_derecha.grid(row=1, column=2)  # Botón Derecha en la fila 1, columna 2
 
-        # Botones de dirección
-        self.arriba_button = tk.Button(control_frame, text="Arriba", command=lambda: self.accion("Arriba"))
-        self.arriba_button.grid(row=0, column=1)
+        # Colocar el botón STOP en el centro (fila 1, columna 1)
+        self.boton_stop = tk.Button(self.root, text="STOP", command=lambda: self.enviar_accion("STOP"))
+        self.boton_stop.grid(row=1, column=1)  # Botón STOP en el centro
 
-        self.abajo_button = tk.Button(control_frame, text="Abajo", command=lambda: self.accion("Abajo"))
-        self.abajo_button.grid(row=2, column=1)
+        # Botón de Historial en una fila inferior
+        self.boton_historial = tk.Button(self.root, text="Historial", command=self.mostrar_historial)
+        self.boton_historial.grid(row=7, column=1)
 
-        self.izquierda_button = tk.Button(control_frame, text="Izquierda", command=lambda: self.accion("Izquierda"))
-        self.izquierda_button.grid(row=1, column=0)
+    def mostrar_hora_ip(self):
+        hora = obtener_hora_local()
+        ip = obtener_ip_desde_mockapi()
 
-        self.derecha_button = tk.Button(control_frame, text="Derecha", command=lambda: self.accion("Derecha"))
-        self.derecha_button.grid(row=1, column=2)
+        # Crear o actualizar etiquetas
+        if not hasattr(self, 'etiqueta_hora'):
+            self.etiqueta_hora = tk.Label(self.root, text=f"Hora: {hora}")
+            self.etiqueta_hora.grid(row=3, column=1)
+        else:
+            self.etiqueta_hora.config(text=f"Hora: {hora}")
 
-    # Método para inyectar la acción en MockAPI
-    def accion(self, accion):
+        if not hasattr(self, 'etiqueta_ip'):
+            self.etiqueta_ip = tk.Label(self.root, text=f"IP: {ip}")
+            self.etiqueta_ip.grid(row=4, column=1)
+        else:
+            self.etiqueta_ip.config(text=f"IP: {ip}")
+
+        # Actualizar cada 10 segundos
+        self.root.after(10000, self.mostrar_hora_ip)
+
+    def enviar_accion(self, accion):
         resultado = inyectar_accion(accion)
-        messagebox.showinfo("Resultado", resultado)
+        self.historial_area.insert(tk.END, f"{accion}: {resultado}\n")
 
-    # Método para mostrar el historial
     def mostrar_historial(self):
         historial = obtener_historial()
         if isinstance(historial, list):
-            self.historial_area.delete('1.0', tk.END)
-            for registro in historial:
+            self.historial_area.delete(1.0, tk.END)  # Limpiar el área
+            ultimos_10 = historial[-10:]  # Obtener los últimos 10 registros
+            for i, registro in enumerate(ultimos_10):
                 self.historial_area.insert(tk.END,
-                                           f"ID: {registro['id']}, Acción: {registro['accion']}, Fecha: {registro['date']}\n")
+                                           f"{i + 1}. ID: {registro['id']}, Acción: {registro['accion']}, Fecha: {registro['date']}\n")
+            if ultimos_10:
+                self.historial_area.insert(tk.END,
+                                           f"**ÚLTIMO MOVIMIENTO** - ID: {ultimos_10[-1]['id']}, Acción: {ultimos_10[-1]['accion']}, Fecha: {ultimos_10[-1]['date']}\n")
         else:
-            messagebox.showerror("Error", historial)
-
-    # Método para actualizar la hora y la IP
-    def actualizar_hora_ip(self):
-        hora = obtener_hora_local()
-        if 'Error' in hora:
-            hora = 'Hora no disponible'
-        self.hora_label.config(text=f"Hora: {hora}")
-
-        ip = obtener_ip_cliente()
-        if 'Error' in ip:
-            ip = 'IP no disponible'
-        self.ip_label.config(text=f"IP: {ip}")
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = IoTCarStatusApp(root)
-    root.mainloop()
+            self.historial_area.insert(tk.END, historial + "\n")
